@@ -8,9 +8,8 @@ A next-generation service-based platform for booking repair, maintenance, and in
 - **TypeScript 5** — Type-safe development
 - **Tailwind CSS 4** — Utility-first styling
 - **shadcn/ui** — Accessible UI components (Radix UI)
-- **Prisma** — Database ORM (SQLite)
-- **Framer Motion** — Animations
 - **React Hook Form + Zod** — Form handling & validation
+- **Sonner** — Toast notifications
 
 ## Getting Started
 
@@ -23,14 +22,6 @@ A next-generation service-based platform for booking repair, maintenance, and in
 
 ```bash
 npm install
-```
-
-### Database Setup
-
-```bash
-npx prisma generate
-npx prisma db push
-npx prisma db seed
 ```
 
 ### Development
@@ -53,7 +44,7 @@ npm start
 ```
 src/
 ├── app/           # Next.js App Router pages & API routes
-│   ├── api/       # REST API (categories, products, services, bookings)
+│   ├── api/       # API routes
 │   ├── about/     # About page
 │   ├── book/      # Booking flow
 │   ├── categories/# Category listing & detail
@@ -64,9 +55,7 @@ src/
 │   ├── seva/      # App-specific components
 │   └── ui/        # shadcn/ui components
 ├── hooks/         # Custom React hooks
-└── lib/           # Utilities & database client
-prisma/
-└── schema.prisma  # Database schema
+└── lib/           # Utilities & static data
 ```
 
 ## License

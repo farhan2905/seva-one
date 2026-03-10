@@ -3,12 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -34,28 +32,7 @@ import {
 import { Header, Footer } from '@/components/seva';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-
-interface ServiceData {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  price: number;
-  discountedPrice: number | null;
-  duration: number;
-  serviceType: string;
-  warranty: string | null;
-  product: {
-    id: string;
-    name: string;
-    slug: string;
-    category: {
-      id: string;
-      name: string;
-      slug: string;
-    };
-  };
-}
+import { getServiceById, getProductForService, getCategoryForProduct, type Service, type Product, type Category } from '@/lib/data';
 
 interface FormData {
   customerName: string;
@@ -72,13 +49,15 @@ export default function BookingPage() {
   const params = useParams();
   const router = useRouter();
   const serviceId = params.serviceId as string;
-  
-  const [service, setService] = useState<ServiceData | null>(null);
+
+  const [service, setService] = useState<Service | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [timeSlot, setTimeSlot] = useState<string>('');
-  
+
   const [formData, setFormData] = useState<FormData>({
     customerName: '',
     customerEmail: '',
@@ -99,30 +78,20 @@ export default function BookingPage() {
   ];
 
   useEffect(() => {
-    const fetchService = async () => {
-      try {
-        const response = await fetch(`/api/services/${serviceId}`);
-        if (!response.ok) throw new Error('Service not found');
-        const data = await response.json();
-        setService(data);
-      } catch (error) {
-        console.error('Error fetching service:', error);
-        toast.error('Failed to load service details');
-      } finally {
-        setLoading(false);
+    const svc = getServiceById(serviceId);
+    if (svc) {
+      setService(svc);
+      const prod = getProductForService(svc.id);
+      setProduct(prod);
+      if (prod) {
+        setCategory(getCategoryForProduct(prod.id));
       }
-    };
-
-    fetchService();
+    }
+    setLoading(false);
   }, [serviceId]);
 
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatPrice = (amount: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} mins`;
@@ -133,7 +102,7 @@ export default function BookingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!date || !timeSlot) {
       toast.error('Please select a date and time slot');
       return;
@@ -141,36 +110,12 @@ export default function BookingPage() {
 
     setSubmitting(true);
 
-    try {
-      // Combine date and time slot
-      const scheduledAt = new Date(date);
-      const [startTime] = timeSlot.split(' - ');
-      const [hours, minutes] = startTime.split(':');
-      const period = startTime.includes('PM') ? 12 : 0;
-      scheduledAt.setHours(parseInt(hours) + period, parseInt(minutes), 0, 0);
+    // Simulate booking (no database)
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          serviceId,
-          scheduledAt: scheduledAt.toISOString(),
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to create booking');
-
-      toast.success('Booking confirmed successfully!');
-      router.push('/');
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      toast.error('Failed to create booking. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+    toast.success('Booking confirmed successfully! We will contact you shortly.');
+    setSubmitting(false);
+    router.push('/');
   };
 
   if (loading) {
@@ -195,7 +140,6 @@ export default function BookingPage() {
   const discount = service.discountedPrice
     ? Math.round(((service.price - service.discountedPrice) / service.price) * 100)
     : 0;
-
   const finalPrice = service.discountedPrice || service.price;
 
   return (
@@ -206,28 +150,25 @@ export default function BookingPage() {
       <div className="bg-white py-4 border-b">
         <div className="container mx-auto px-4">
           <nav className="flex items-center gap-2 text-sm flex-wrap">
-            <Link href="/" className="text-slate-500 hover:text-primary transition-colors">
-              Home
-            </Link>
+            <Link href="/" className="text-slate-500 hover:text-primary transition-colors">Home</Link>
             <ChevronRight className="w-4 h-4 text-slate-400" />
-            <Link 
-              href={`/categories/${service.product.category.slug}`} 
-              className="text-slate-500 hover:text-primary transition-colors"
-            >
-              {service.product.category.name}
-            </Link>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-            <Link 
-              href={`/products/${service.product.slug}`} 
-              className="text-slate-500 hover:text-primary transition-colors"
-            >
-              {service.product.name}
-            </Link>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-            <Link 
-              href={`/services/${service.slug}`} 
-              className="text-slate-500 hover:text-primary transition-colors"
-            >
+            {category && (
+              <>
+                <Link href={`/categories/${category.slug}`} className="text-slate-500 hover:text-primary transition-colors">
+                  {category.name}
+                </Link>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </>
+            )}
+            {product && (
+              <>
+                <Link href={`/products/${product.slug}`} className="text-slate-500 hover:text-primary transition-colors">
+                  {product.name}
+                </Link>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </>
+            )}
+            <Link href={`/services/${service.slug}`} className="text-slate-500 hover:text-primary transition-colors">
               {service.name}
             </Link>
             <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -251,21 +192,13 @@ export default function BookingPage() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Booking Form */}
             <div className="lg:col-span-2">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8"
-              >
-                <h1 className="text-2xl font-bold text-slate-900 mb-6">
-                  Book {service.name}
-                </h1>
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8">
+                <h1 className="text-2xl font-bold text-slate-900 mb-6">Book {service.name}</h1>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Contact Details */}
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900 mb-4">
-                      Contact Details
-                    </h2>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Contact Details</h2>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name *</Label>
@@ -304,9 +237,7 @@ export default function BookingPage() {
 
                   {/* Service Address */}
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900 mb-4">
-                      Service Address
-                    </h2>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Service Address</h2>
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="address">Complete Address *</Label>
@@ -346,18 +277,13 @@ export default function BookingPage() {
 
                   {/* Schedule */}
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900 mb-4">
-                      Schedule Service
-                    </h2>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Schedule Service</h2>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Select Date *</Label>
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal"
-                            >
+                            <Button variant="outline" className="w-full justify-start text-left font-normal">
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {date ? format(date, 'PPP') : 'Pick a date'}
                             </Button>
@@ -370,7 +296,7 @@ export default function BookingPage() {
                                 setDate(newDate);
                                 setFormData({ ...formData, scheduledAt: newDate });
                               }}
-                              disabled={(date) => date < new Date()}
+                              disabled={(d) => d < new Date()}
                               initialFocus
                             />
                           </PopoverContent>
@@ -384,9 +310,7 @@ export default function BookingPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {timeSlots.map((slot) => (
-                              <SelectItem key={slot} value={slot}>
-                                {slot}
-                              </SelectItem>
+                              <SelectItem key={slot} value={slot}>{slot}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -406,13 +330,8 @@ export default function BookingPage() {
                     />
                   </div>
 
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full gradient-primary text-white"
-                    disabled={submitting}
-                  >
+                  {/* Submit */}
+                  <Button type="submit" size="lg" className="w-full gradient-primary text-white" disabled={submitting}>
                     {submitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -423,20 +342,17 @@ export default function BookingPage() {
                     )}
                   </Button>
                 </form>
-              </motion.div>
+              </div>
             </div>
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sticky top-24">
-                <h2 className="text-lg font-semibold text-slate-900 mb-4">
-                  Order Summary
-                </h2>
+                <h2 className="text-lg font-semibold text-slate-900 mb-4">Order Summary</h2>
 
-                {/* Service Info */}
                 <div className="pb-4 mb-4 border-b border-slate-100">
                   <h3 className="font-medium text-slate-900">{service.name}</h3>
-                  <p className="text-sm text-slate-500 mb-2">{service.product.name}</p>
+                  {product && <p className="text-sm text-slate-500 mb-2">{product.name}</p>}
                   <div className="flex items-center gap-4 text-sm text-slate-500">
                     <span className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
@@ -451,7 +367,6 @@ export default function BookingPage() {
                   </div>
                 </div>
 
-                {/* Pricing */}
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-slate-600">
                     <span>Service Charge</span>
@@ -473,7 +388,6 @@ export default function BookingPage() {
                   </div>
                 </div>
 
-                {/* Benefits */}
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-slate-600">
                     <CheckCircle className="w-4 h-4 text-green-500" />
