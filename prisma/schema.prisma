@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  icon        String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  services    Service[]
+}
+
+model Service {
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique
+  description     String?
+  price           Float
+  discountedPrice Float?
+  duration        Int         // in minutes
+  serviceType     ServiceType @default(Repair)
+  warranty        String?
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  isActive        Boolean     @default(true)
+  sortOrder       Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  bookings        Booking[]
+}
+
+enum ServiceType {
+  Repair
+  Maintenance
+  Installation
+}
+
+model Booking {
+  id          String      @id @default(cuid())
+  serviceId   String
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  customerName String
+  customerEmail String
+  customerPhone String
+  address     String
+  city        String
+  pincode     String
+  scheduledAt DateTime
+  status      BookingStatus @default(Pending)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum BookingStatus {
+  Pending
+  Confirmed
+  InProgress
+  Completed
+  Cancelled
+}
